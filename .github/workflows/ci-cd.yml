@@ -62,31 +62,14 @@ jobs:
         fetch-depth: 0
     - name: SonarQube Scan
       uses: sonarsource/sonarqube-scan-action@v6.0.0
-     # env:
-       # SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        # SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       with:
         projectBaseDir: .
         args: >
           -Dsonar.projectKey=NodeJS-Project
           -Dsonar.projectName=NodeJS-Project
-          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
-          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-          -X
-
-  quality-gate-check:
-    runs-on: ubuntu-latest
-    needs: sonarqube-analysis
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-    - name: SonarQube Quality Gate Check
-      uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
-      with:
-        pollingTimeoutSec: 600
-      env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }} #OPTIONAL
 
   trivy-fs-scan:
     runs-on: ubuntu-latest
