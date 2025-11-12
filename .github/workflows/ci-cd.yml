@@ -70,8 +70,6 @@ jobs:
         args: >
           -Dsonar.projectKey=NodeJS-Project
           -Dsonar.projectName=NodeJS-Project
-          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
-          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
   quality-gate-check:
     runs-on: ubuntu-latest
