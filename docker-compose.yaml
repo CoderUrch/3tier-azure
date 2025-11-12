@@ -12,10 +12,10 @@ services:
       - mysql-data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d
     ports:
-      - "3306:3306"
+      - "3307:3306"
 
   backend:
-    build: ./api
+    image: urchytech/3-tier-deployment_backend:latest
     container_name: backend-api
     environment:
       DB_HOST: mysql
@@ -30,7 +30,7 @@ services:
       - "5000:5000"
 
   frontend:
-    build: ./client
+    image: urchytech/3-tier-deployment_frontend:latest
     container_name: frontend-react
     ports:
       - "3000:80"

@@ -8,8 +8,8 @@ on:
 
 env:
   DOCKER_REGISTRY: docker.io
-  BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/backend
-  FRONTEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/frontend
+  BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/3-tier-deployment_backend
+  FRONTEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/3-tier-deployment_frontend
 
 jobs:
   frontend-compilation:
