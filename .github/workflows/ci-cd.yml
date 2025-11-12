@@ -61,10 +61,14 @@ jobs:
       with:
         fetch-depth: 0
     - name: SonarQube Scan
-      uses: sonarsource/sonarqube-scan-action@master
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      uses: sonarsource/sonarqube-scan-action@v5
+      with:
+        projectBaseDir: .
+        args: >
+          -Dsonar.projectKey=NodeJS-Project
+          -Dsonar.projectName=NodeJS-Project
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
   quality-gate-check:
     runs-on: ubuntu-latest
