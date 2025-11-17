@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: urchytech/frontend:latest
+          image: urchytech/3-tier-deployment_frontend:latest
           ports:
             - containerPort: 80
 ---
