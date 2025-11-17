@@ -1,32 +1,25 @@
 ---
-apiVersion: secrets-store.csi.x-k8s.io/v1
-kind: SecretProviderClass
+apiVersion: v1
+kind: Secret
 metadata:
-  name: mysql-secrets-provider
+  name: mysql-secret
   namespace: prod
-spec:
-  provider: aws
-  parameters:
-    objects: |
-      - objectName: "prod/mysql/credentials"
-        objectType: "secretsmanager"
-        jmesPath:
-          - path: "MYSQL_ROOT_PASSWORD"
-            objectAlias: "MYSQL_ROOT_PASSWORD"
-          - path: "MYSQL_DATABASE"
-            objectAlias: "MYSQL_DATABASE"
-          - path: "JWT_SECRET"
-            objectAlias: "JWT_SECRET"
-  secretObjects:
-  - secretName: mysql-secret-from-aws
-    type: Opaque
-    data:
-    - objectName: "MYSQL_ROOT_PASSWORD"
-      key: "MYSQL_ROOT_PASSWORD"
-    - objectName: "MYSQL_DATABASE"
-      key: "MYSQL_DATABASE"
-    - objectName: "JWT_SECRET"
-      key: "JWT_SECRET"
+  labels:
+    app: mysql
+type: Opaque
+stringData:
+  MYSQL_ROOT_PASSWORD: Aditya
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config
+  namespace: prod
+  labels:
+    app: mysql
+data:
+  MYSQL_DATABASE: crud_app
 
 ---
 apiVersion: v1
@@ -65,18 +58,19 @@ spec:
   selector:
     app: mysql
   ports:
-    - port: 3306
+    - port: 3307
       targetPort: 3306
 
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mysql
   namespace: prod
   labels:
     app: mysql
 spec:
+  serviceName: mysql
   replicas: 1
   selector:
     matchLabels:
@@ -86,7 +80,6 @@ spec:
       labels:
         app: mysql
     spec:
-      serviceAccountName: mysql-secrets-sa
       containers:
         - name: mysql
           image: mysql:8
@@ -96,31 +89,28 @@ spec:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: mysql-secret-from-aws
+                  name: mysql-secret
                   key: MYSQL_ROOT_PASSWORD
             - name: MYSQL_DATABASE
               valueFrom:
-                secretKeyRef:
-                  name: mysql-secret-from-aws
+                configMapKeyRef:
+                  name: mysql-config
                   key: MYSQL_DATABASE
           volumeMounts:
-            - name: mysql-storage
+            - name: mysql-persistent-storage
               mountPath: /var/lib/mysql
             - name: initdb
               mountPath: /docker-entrypoint-initdb.d
-            - name: secrets-store
-              mountPath: /mnt/secrets-store
-              readOnly: true
       volumes:
-        - name: mysql-storage
-          persistentVolumeClaim:
-            claimName: mysql-pvc
         - name: initdb
           configMap:
             name: mysql-initdb-config
-        - name: secrets-store
-          csi:
-            driver: secrets-store.csi.k8s.io
-            readOnly: true
-            volumeAttributes:
-              secretProviderClass: mysql-secrets-provider
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-persistent-storage
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: ebs-gp3
+        resources:
+          requests:
+            storage: 3Gi
