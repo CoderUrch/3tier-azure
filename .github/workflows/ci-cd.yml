@@ -155,6 +155,7 @@ jobs:
         path: |
           backend-image-report.html
           frontend-image-report.html
+  
   deploy-production:
     runs-on: ubuntu-latest
     needs: trivy-image-scan
@@ -182,151 +183,23 @@ jobs:
         kubectl get nodes
         kubectl get namespaces
         
-    - name: Install Helm
-      uses: azure/setup-helm@v4
-      with:
-        version: '3.12.0'
-        
-    - name: Update values.yaml with new image tags
+    - name: k8s manifest Deployment
       run: |
-        # Get short commit SHA
-        SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
-        
-        # Update values.yaml with new image tags
-        sed -i "s/tag: .*/tag: ${{ github.sha }}/g" helm/user-management-app/values.yaml
-        
-        # Show the updated values
-        echo "Updated values.yaml:"
-        cat helm/user-management-app/values.yaml
-        
-    - name: Deploy to Production with Helm
-      run: |
-        # Deploy infrastructure components (non-prod namespace)
-        kubectl apply -f k8s-prod/grafana-ingress.yaml
-        kubectl apply -f k8s-prod/argocd-ingress.yaml
-        
-        # Check if Helm release exists and handle accordingly
-        if helm list -n prod | grep -q user-management-app; then
-          echo "Helm release exists, upgrading..."
-          helm upgrade user-management-app ./helm/user-management-app \
-            --namespace prod \
-            --set image.frontend.tag=${{ github.sha }} \
-            --set image.backend.tag=${{ github.sha }} \
-            --wait --timeout=300s
-        else
-          echo "No existing Helm release, installing..."
-          # Clean up any existing non-Helm managed resources
-          kubectl delete deployment,service,secret,configmap,pvc -n prod --all --ignore-not-found=true
-          
-          # Install with Helm
-          helm install user-management-app ./helm/user-management-app \
-            --namespace prod \
-            --create-namespace \
-            --set image.frontend.tag=${{ github.sha }} \
-            --set image.backend.tag=${{ github.sha }} \
-            --wait --timeout=300s
-        fi
-        
-        sleep 30
+        # Show what was deployed
+        kubectl apply -f storage.yaml -n prod
+        kubectl apply -f mysql.yaml -n prod
+        kubectl apply -f backend.yaml -n prod
+        kubectl apply -f frontend.yaml -n prod
         
     - name: Verify Deployment
       run: |
-        # Show Helm release status
-        helm list -n prod
-        helm status user-management-app -n prod
-        
-        # Show what was deployed
-        kubectl get pods,svc,ingress -n prod
-        kubectl get ingress -n monitoring
-        kubectl get ingress -n argocd
+        kubectl get pods -n prod
+        kubectl get svc -n prod
+        kubectl get deployment -n prod
+        kubectl wait --for=condition=available deployment/backend -n prod --timeout=120s
         
         # Show access App ALB URL
         echo "\nAccess your app at:"
         kubectl get ingress -n prod -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' && echo "/" || echo "ALB hostname pending..."
-        # Show access Grafana ALB URL
-        echo "\nAccess your monitoring dashboard at:"
-        kubectl get ingress grafana-ingress -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' && echo "/" || echo "ALB hostname pending..."
-        
-        # Show access ArgoCD ALB URL
-        echo "\nAccess your ArgoCD at:"
-        kubectl get ingress argocd-server-ingress -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' && echo "/" || echo "ALB hostname pending..."
-        
-        echo "\nHelm deployment complete! ✅"
-        
-  notify:
-    runs-on: ubuntu-latest
-    needs: [deploy-production]
-    if: always() && github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
       
-    - name: Set notification status
-      id: status
-      run: |
-        if [[ "${{ needs.deploy-production.result }}" == "success" ]]; then
-          echo "status=success" >> $GITHUB_OUTPUT
-          echo "color=good" >> $GITHUB_OUTPUT
-          echo "emoji=:white_check_mark:" >> $GITHUB_OUTPUT
-          echo "message=Deployment completed successfully!!" >> $GITHUB_OUTPUT
-        else
-          echo "status=failure" >> $GITHUB_OUTPUT
-          echo "color=danger" >> $GITHUB_OUTPUT
-          echo "emoji=:x:" >> $GITHUB_OUTPUT
-          echo "message=Deployment failed!" >> $GITHUB_OUTPUT
-        fi
-        
-    - name: Slack Notification
-      uses: 8398a7/action-slack@v3
-      with:
-        status: ${{ steps.status.outputs.status }}
-        channel: '#devops'
-        text: |
-          ${{ steps.status.outputs.emoji }} **DevSecOps Pipeline ${{ steps.status.outputs.status }}**
-          
-          **Repository:** ${{ github.repository }}
-          **Branch:** ${{ github.ref_name }}
-          **Commit:** ${{ github.sha }}
-          **Author:** ${{ github.actor }}
-          **Message:** ${{ steps.status.outputs.message }}
-          
-          **Application:** https://app.mylearncloud.shop
-          **Grafana:** https://grafana.mylearncloud.shop
-          **ArgoCD:** https://argocd.mylearncloud.shop
-          
-          **Pipeline:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        fields: repo,message,commit,author,action,eventName,ref,workflow
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      if: always()
-      
-    - name: Email Notification
-      uses: dawidd6/action-send-mail@v3
-      with:
-        server_address: smtp.gmail.com
-        server_port: 587
-        username: ${{ secrets.EMAIL_USERNAME }}
-        password: ${{ secrets.EMAIL_PASSWORD }}
-        subject: "DevSecOps Pipeline ${{ steps.status.outputs.status }} - ${{ github.repository }}"
-        to: ${{ secrets.EMAIL_TO }}
-        from: DevSecOps Pipeline <${{ secrets.EMAIL_USERNAME }}>
-        html_body: |
-          <h2>${{ steps.status.outputs.emoji }} DevSecOps Pipeline ${{ steps.status.outputs.status }}</h2>
-          
-          <p><strong>Repository:</strong> ${{ github.repository }}</p>
-          <p><strong>Branch:</strong> ${{ github.ref_name }}</p>
-          <p><strong>Commit:</strong> ${{ github.sha }}</p>
-          <p><strong>Author:</strong> ${{ github.actor }}</p>
-          <p><strong>Status:</strong> ${{ steps.status.outputs.message }}</p>
-          
-          <h3>Access Links:</h3>
-          <ul>
-            <li><a href="https://app.mylearncloud.shop">Application</a></li>
-            <li><a href="https://grafana.mylearncloud.shop">Grafana Dashboard</a></li>
-            <li><a href="https://argocd.mylearncloud.shop">ArgoCD</a></li>
-            <li><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">Pipeline Details</a></li>
-          </ul>
-          
-          <p><em>Automated DevSecOps Pipeline Notification</em></p>
-      if: always()
+        echo "Kubernetes deployment complete! ✅"
