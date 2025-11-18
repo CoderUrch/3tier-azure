@@ -14,7 +14,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: app.mylearncloud.shop    # Domain-specific rule
+    - host: mylearncloud.shop    # Domain-specific rule
       http:
         paths:
           - path: /api
