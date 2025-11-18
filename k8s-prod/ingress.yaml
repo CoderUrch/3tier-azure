@@ -7,7 +7,7 @@ metadata:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-north-1:857156722233:certificate/9326c6b7-089a-4936-9483-190fb8f76194
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-north-1:798555099259:certificate/15a0cbf8-ed81-433c-b0ab-e07a1524b334
     alb.ingress.kubernetes.io/ssl-redirect: '443'
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/group.name: "shared-alb"
