@@ -30,4 +30,4 @@ spec:
   tls:
     - hosts:
         - www.mylearncloud.shop
-      secretName: mylearncloud-tls-2tc2t
+      secretName: mylearncloud-tls
