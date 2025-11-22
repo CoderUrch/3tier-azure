@@ -192,6 +192,8 @@ jobs:
         kubectl apply -f k8s-prod/frontend.yaml -n prod
         kubectl apply -f k8s-prod/ci.yaml -n prod
         kubectl apply -f k8s-prod/nginx-ingress.yaml -n prod
+        kubectl apply -f k8s-prod/grafana-ingress.yaml -n monitoring
+
         sleep 30
         
     - name: Verify Deployment
@@ -203,7 +205,10 @@ jobs:
         sleep 20
         
         # Show access App ALB URL
-        echo "\nAccess your app at:"
+        echo "Access your App Dashboard at:"
         kubectl get ingress -n prod 
+        echo
+        echo "Access your Grafana Dashboard at:"
+        kubectl get ingress -n monitoring
       
         echo "Kubernetes deployment complete! ✅"
