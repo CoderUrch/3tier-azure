@@ -4,14 +4,12 @@ metadata:
   name: grafana-ingress
   namespace: monitoring
   annotations:
-    kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-north-1:857156722233:certificate/61474827-a9b2-4760-9733-28ec2265c87c
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
-  ingressClassName: alb
+  ingressClassName: nginx
   rules:
     - host: grafana.mylearncloud.shop
       http:
@@ -32,3 +30,8 @@ spec:
                 name: monitoring-grafana
                 port:
                   number: 80
+
+  tls:
+    - hosts:
+        - grafana.mylearncloud.shop
+      secretName: grafana-mylearncloud-tls
