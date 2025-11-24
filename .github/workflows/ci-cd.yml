@@ -177,22 +177,17 @@ jobs:
 
     - name: Update kubeconfig
       run: aws eks update-kubeconfig --name uche --region eu-north-1
-      
-    - name: Verify Kubernetes access
-      run: |
-        kubectl get nodes
-        kubectl get namespaces
         
     - name: k8s manifest Deployment
       run: |
-        # Show what was deployed
-        kubectl apply -f k8s-prod/storage.yaml -n prod
-        kubectl apply -f k8s-prod/mysql.yaml -n prod
-        kubectl apply -f k8s-prod/backend.yaml -n prod
-        kubectl apply -f k8s-prod/frontend.yaml -n prod
-        kubectl apply -f k8s-prod/ci.yaml -n prod
-        kubectl apply -f k8s-prod/nginx-ingress.yaml -n prod
+        # Deploy infrastructure components (non-prod namespace)
         kubectl apply -f k8s-prod/grafana-ingress.yaml -n monitoring
+
+        # Deploy infrastructure components (prod namespace)
+        helm upgrade --install myapp ./helm/user-management-app \
+        --namespace prod \
+        --create-namespace \
+        --wait --timeout=60s
 
         sleep 30
         
