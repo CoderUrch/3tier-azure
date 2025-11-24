@@ -2,6 +2,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: frontend={{ .Values.image.frontend.repository }}
+    argocd-image-updater.argoproj.io/frontend.update-strategy: digest
   name: frontend
   namespace: prod
   labels:
