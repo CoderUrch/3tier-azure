@@ -2,7 +2,7 @@
 image:
   frontend:
     repository: urchytech/3-tier-deployment_frontend
-    tag: 6c149cc5740c9877cbb9d58e4f3b816d6c0f279a
+    tag: 2717389b82ff6d0c845cb45e5b866336a548e914
   backend:
     repository: urchytech/3-tier-deployment_backend
-    tag: 6c149cc5740c9877cbb9d58e4f3b816d6c0f279a
+    tag: 2717389b82ff6d0c845cb45e5b866336a548e914
