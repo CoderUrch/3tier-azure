@@ -181,17 +181,30 @@ jobs:
     - name: Update kubeconfig
       run: aws eks update-kubeconfig --name uche --region eu-north-1
 
-    - name: Update values.yaml with new image tags
+    - name: Install yq
       run: |
-        # Get short commit SHA
-        SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
+
+    - name: Update Helm values.yaml with new image tags
+      run: |
+        echo "Updating Helm values.yaml..."
         
-        # Update values.yaml with new image tags
-        sed -i "s/tag: .*/tag: ${{ github.sha }}/g" helm/user-management-app/values.yaml
-        
-        # Show the updated values
+        BACKEND_TAG=${{ github.sha }}
+        FRONTEND_TAG=${{ github.sha }}
+
+        echo "Backend tag: $BACKEND_TAG"
+        echo "Frontend tag: $FRONTEND_TAG"
+
+        # Update backend
+        yq e -i ".image.backend.tag = \"$BACKEND_TAG\"" helm/user-management-app/values.yaml
+
+        # Update frontend
+        yq e -i ".image.frontend.tag = \"$FRONTEND_TAG\"" helm/user-management-app/values.yaml
+
         echo "Updated values.yaml:"
         cat helm/user-management-app/values.yaml
+
 
     - name: Commit & Push Updated Helm Chart
       env:
