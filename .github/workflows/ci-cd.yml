@@ -5,7 +5,10 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
+    
+permissions:
+  contents: write
+  
 env:
   DOCKER_REGISTRY: docker.io
   BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/3-tier-deployment_backend
