@@ -2,9 +2,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    argocd-image-updater.argoproj.io/image-list: backend={{ .Values.image.backend.repository }}
-    argocd-image-updater.argoproj.io/backend.update-strategy: digest
   name: backend
   namespace: prod
   labels:
