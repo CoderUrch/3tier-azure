@@ -15,7 +15,7 @@ services:
       - "3307:3306"
 
   backend:
-    image: urchytech/3-tier-deployment_backend:latest
+    image: myk8sacr1.azurecr.io/api:latest
     container_name: backend-api
     environment:
       DB_HOST: mysql
@@ -30,7 +30,7 @@ services:
       - "5000:5000"
 
   frontend:
-    image: urchytech/3-tier-deployment_frontend:latest
+    image: myk8sacr1.azurecr.io/client:latest
     container_name: frontend-react
     ports:
       - "3000:80"

@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: urchytech/3-tier-deployment_frontend:latest
+          image: myk8sacr1.azurecr.io/client:latest
           ports:
             - containerPort: 80
 ---
