@@ -1,4 +1,4 @@
-name: 3-Tier GitOps CI/CD Pipeline
+name: 3-Tier GitOps CI/CD Pipeline for AKS
 
 on:
   push:
@@ -10,9 +10,9 @@ permissions:
   contents: write
   
 env:
-  DOCKER_REGISTRY: docker.io
-  BACKEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/3-tier-deployment_backend
-  FRONTEND_IMAGE: ${{ secrets.DOCKER_USERNAME }}/3-tier-deployment_frontend
+  ACR_REGISTRY: myk8sacr1.azurecr.io
+  BACKEND_IMAGE: myk8sacr1.azurecr.io/api
+  FRONTEND_IMAGE: myk8sacr1.azurecr.io/client
 
 jobs:
   frontend-compilation:
@@ -28,6 +28,7 @@ jobs:
       run: |
         cd client
         find . -name "*.js" -exec node --check {} +
+        
   backend-compilation:
     runs-on: ubuntu-latest
     steps:
@@ -41,6 +42,7 @@ jobs:
       run: |
         cd api
         find . -name "*.js" -exec node --check {} +
+        
   gitleaks-scan:
     runs-on: ubuntu-latest
     needs: [frontend-compilation, backend-compilation]
@@ -73,7 +75,7 @@ jobs:
         args: >
           -Dsonar.projectKey=NodeJS-Project
           -Dsonar.projectName=NodeJS-Project
-
+          
   trivy-fs-scan:
     runs-on: ubuntu-latest
     needs: sonarqube-analysis
@@ -93,64 +95,76 @@ jobs:
         name: trivy-fs-report
         path: fs-report.html
 
-  build-tag-push-backend:
+  tag-push-backend:
     runs-on: ubuntu-latest
     needs: trivy-fs-scan
     steps:
     - name: Checkout Code
       uses: actions/checkout@v5
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Login to Docker Hub
+      
+    - name: Login to Azure Container Registry
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-    - name: Build and Push Backend Image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./api
-        push: true
-        tags: ${{ env.BACKEND_IMAGE }}:latest,${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+        registry: ${{ env.ACR_REGISTRY }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+        
+    - name: Pull, Tag and Push Backend Image
+      run: |
+        docker pull ${{ env.BACKEND_IMAGE }}:latest
+        docker tag ${{ env.BACKEND_IMAGE }}:latest ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+        docker push ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+        echo "✅ Backend image tagged: ${{ github.sha }}"
 
-  build-tag-push-frontend:
+  tag-push-frontend:
     runs-on: ubuntu-latest
     needs: trivy-fs-scan
     steps:
     - name: Checkout Code
       uses: actions/checkout@v5
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Login to Docker Hub
+      
+    - name: Login to Azure Container Registry
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-    - name: Build and Push Frontend Image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./client
-        push: true
-        tags: ${{ env.FRONTEND_IMAGE }}:latest,${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+        registry: ${{ env.ACR_REGISTRY }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+        
+    - name: Pull, Tag and Push Frontend Image
+      run: |
+        docker pull ${{ env.FRONTEND_IMAGE }}:latest
+        docker tag ${{ env.FRONTEND_IMAGE }}:latest ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+        docker push ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+        echo "✅ Frontend image tagged: ${{ github.sha }}"
 
   trivy-image-scan:
     runs-on: ubuntu-latest
-    needs: [build-tag-push-backend, build-tag-push-frontend]
+    needs: [tag-push-backend, tag-push-frontend]
     steps:
     - name: Checkout Code
       uses: actions/checkout@v5
+      
+    - name: Login to Azure Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.ACR_REGISTRY }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+        
     - name: Run Trivy scan on Backend image
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: ${{ env.BACKEND_IMAGE }}:latest
         format: 'table'
         output: 'backend-image-report.html'
+        
     - name: Run Trivy scan on Frontend image
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: ${{ env.FRONTEND_IMAGE }}:latest
         format: 'table'
         output: 'frontend-image-report.html'
+        
     - name: Upload Trivy image scan results
       uses: actions/upload-artifact@v4
       with:
@@ -158,84 +172,3 @@ jobs:
         path: |
           backend-image-report.html
           frontend-image-report.html
-  
-  deploy-production:
-    runs-on: ubuntu-latest
-    needs: trivy-image-scan
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v5
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0
-      
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: eu-north-1
-
-    - name: Update kubeconfig
-      run: aws eks update-kubeconfig --name uche --region eu-north-1
-
-    - name: Install yq
-      run: |
-        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
-        sudo chmod +x /usr/bin/yq
-
-    - name: Update Helm values.yaml with new image tags
-      run: |
-        echo "Updating Helm values.yaml..."
-        
-        BACKEND_TAG=${{ github.sha }}
-        FRONTEND_TAG=${{ github.sha }}
-
-        echo "Backend tag: $BACKEND_TAG"
-        echo "Frontend tag: $FRONTEND_TAG"
-
-        # Update backend
-        yq e -i ".image.backend.tag = \"$BACKEND_TAG\"" helm/user-management-app/values.yaml
-
-        # Update frontend
-        yq e -i ".image.frontend.tag = \"$FRONTEND_TAG\"" helm/user-management-app/values.yaml
-
-        echo "Updated values.yaml:"
-        cat helm/user-management-app/values.yaml
-
-
-    - name: Commit & Push Updated Helm Chart
-      env:
-        GH_PAT: ${{ secrets.GH_PAT }}
-      run: |
-        git config user.name "github-actions"
-        git config user.email "github-actions@github.com"
-
-        git add helm/user-management-app/values.yaml
-        git commit -m "Update image tags to ${{ github.sha }}" || echo "No changes to commit"
-
-        git push https://x-access-token:$GH_PAT@github.com/CoderUrch/3-tier-deployment.git main
-
-        #Deploy to non-prod namespace
-        kubectl apply -f k8s-prod/grafana-ingress.yaml -n monitoring
-
-        sleep 30
-
-    - name: Verify Deployment
-      run: |
-        kubectl get pods -n prod
-        kubectl get svc -n prod
-        kubectl get deployment -n prod
-        kubectl wait --for=condition=available deployment/backend -n prod --timeout=120s
-        sleep 20
-        
-        # Show access App ALB URL
-        echo "Access your App Dashboard at:"
-        kubectl get ingress -n prod 
-        echo
-        echo "Access your Grafana Dashboard at:"
-        kubectl get ingress -n monitoring
-      
-        echo "Kubernetes deployment complete! ✅"
