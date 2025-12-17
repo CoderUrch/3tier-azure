@@ -1,18 +1,15 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: argocd-server-ingress
+  name: argocd-ingress
   namespace: argocd
   annotations:
-    kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-north-1:857156722233:certificate/bd1d98f5-3edc-4e53-a088-df3d90fb3d26
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/backend-protocol: HTTPS
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
-  ingressClassName: alb
+  ingressClassName: nginx
   rules:
     - host: argocd.mylearncloud.shop
       http:
@@ -23,13 +20,8 @@ spec:
               service:
                 name: argocd-server
                 port:
-                  number: 80
-    - http:  # Wildcard rule for direct ALB access
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: argocd-server
-                port:
-                  number: 80
+                  number: 443
+  tls:
+    - hosts:
+        - argocd.mylearncloud.shop
+      secretName: argocd-mylearncloud-tls
