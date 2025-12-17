@@ -1,8 +1,8 @@
 # Image tags for GitOps - ArgoCD watches these values - testing
 image:
   frontend:
-    repository: urchytech/3-tier-deployment_frontend
-    tag: 7e8569c83816b843c8beea635836a518768bb218
+    repository: myk8sacr1.azurecr.io/client
+    tag: latest
   backend:
-    repository: urchytech/3-tier-deployment_backend
-    tag: 7e8569c83816b843c8beea635836a518768bb218
+    repository: myk8sacr1.azurecr.io/api
+    tag: latest

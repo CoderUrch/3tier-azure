@@ -29,23 +29,23 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: mysql-secret-from-aws
+                  name: mysql-secret
                   key: MYSQL_ROOT_PASSWORD
             - name: DB_NAME
               valueFrom:
                 secretKeyRef:
-                  name: mysql-secret-from-aws
+                  name: mysql-secret
                   key: MYSQL_DATABASE
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: mysql-secret-from-aws
+                  name: mysql-secret
                   key: JWT_SECRET
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend-svc
+  name: backend
   namespace: prod
 spec:
   selector:
